@@ -1,0 +1,52 @@
+import random
+import simpy
+import numpy as np
+
+# Global simulation parameters
+num_employees = 2
+avg_support_time = 5 
+customer_interval = 2
+sim_time = 60
+customers_handled = 0 # Global counter for handled customers
+
+class callcenter:
+    def __init__(self, env, support_time): # Corrected def __init__, env_employees to env
+        self.env = env
+        self.support_time = support_time
+        self.employees = simpy.Resource(env, num_employees) # Corrected self:num_employees to self.employees and use global num_employees
+
+    def support(self, customer_name): # Renamed 'customer' to 'customer_name' to avoid conflict with function name
+        random_time = max(1, np.random.normal(self.support_time, 4))
+        yield self.env.timeout(random_time)
+        print(f"Soporte finalizado para {customer_name} at {self.env.now:.2f}") # Corrected f-string and `self.env now`
+
+def customer(env, name, call_center):
+    global customers_handled
+    print(f"Cliente {name} ingresa a la linea de espera a las {env.now:.2f}!")
+    with call_center.employees.request() as request: # Corrected call_enter.staff to call_center.employees
+        yield request
+        print(f"Cliente {name} ingresa llamada a {env.now:.2f}")
+        yield env.process(call_center.support(name)) # Call the support method within the process
+        print(f"Cliente {name} abandonó la llamada a las {env.now:.2f}")
+    customers_handled += 1
+
+def setup(env, num_employees, support_time, customer_interval):
+    call_center = callcenter(env, support_time) # Corrected class name `Call Center` to `callcenter` and `en` to `env`
+
+    # Initial customers
+    for i in range(1, 6): # Corrected `rante` to `range`
+        env.process(customer(env, i, call_center))
+
+    # Continuous customer arrival
+    customer_counter = 5 # Start counter for new customers after initial batch
+    while True: # Corrected `true` to `True`
+        yield env.timeout(random.randint(customer_interval - 1, customer_interval + 1)) # Corrected `randit` to `randint`
+        customer_counter += 1 # Increment customer_counter for unique names
+        env.process(customer(env, customer_counter, call_center))
+
+# Simulation execution block (should be outside any function definitions)
+print("Iniciando la simulacion del call center...")
+env = simpy.Environment() # Corrected simpy.environment() to simpy.Environment()
+env.process(setup(env, num_employees, avg_support_time, customer_interval)) # Using global variables
+env.run(until=sim_time) # Corrected until_SIM_TIME to sim_time
+print("Clientes atendidos: " + str(customers_handled))
